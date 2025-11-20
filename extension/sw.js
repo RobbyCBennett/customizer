@@ -6,35 +6,36 @@
  * Try to get the URL of the tab and remember it for the options
  * @param {chrome.tabs.Tab} tab
  */
-async function rememberURLForOptions(tab)
+async function remember_url_for_options(tab)
 {
 	// Fail if no tab URL
 	if (!tab.url)
 		return;
 
 	// Get the base URL or fail
-	const baseUrlPattern = /^https?:\/\/(www.)?(.+?[^\/:])(?=[?\/]|$)/;
-	const baseUrl = tab.url.match(baseUrlPattern);
-	if (!baseUrl)
+	const base_url_pattern = /^https?:\/\/(www.)?(.+?[^\/:])(?=[?\/]|$)/;
+	const base_url = tab.url.match(base_url_pattern);
+	if (!base_url)
 		return;
 
 	// Remember the URL
-	await chrome.storage.local.set({ url: `css:${baseUrl[2]}` });
+	await chrome.storage.local.set({ url: `css:${base_url[2]}` });
 }
 
 
 /**
  * Handle a command like clicking a button or a keyboard shortcut
  * @param {string} command
- * @param {chrome.tabs.Tab} tab
+ * @param {chrome.tabs.Tab | undefined} tab
  */
-async function handleCommand(command, tab)
+async function handle_command(command, tab)
 {
 	switch (command) {
 		case 'bigOptions':
 			break;
 		case 'bigOptionsEditSite':
-			await rememberURLForOptions(tab);
+			if (tab)
+				await remember_url_for_options(tab);
 			break;
 		default:
 			return;
@@ -49,7 +50,7 @@ async function handleCommand(command, tab)
  */
 function main()
 {
-	chrome.commands.onCommand.addListener(handleCommand);
+	chrome.commands.onCommand.addListener(handle_command);
 }
 
 

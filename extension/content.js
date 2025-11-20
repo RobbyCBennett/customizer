@@ -3,51 +3,57 @@
 
 
 /**
- * Create a style element for HTML pages or event XML pages
- * @returns {HTMLStyleElement}
+ * Wait to get the stylesheet content then add it to the head
+ * @param {Promise<{[key: string]: any}>} sheets_promise
  */
-function createStyleElement()
+async function change_style(sheets_promise)
 {
-	const namespace = document.documentElement.getAttribute('xmlns');
-	if (typeof namespace === 'string')
-		// @ts-ignore
-		return document.createElementNS(namespace, 'style');
-	else
-		return document.createElement('style');
+	// Get sheets for this URL or stop
+	const sheets = await sheets_promise;
+	if (Object.keys(sheets).length == 0)
+		return;
+
+	// Append stylesheet to head
+	const style = document.createElement('style');
+	style.innerHTML = Object.values(sheets).join('');
+	document.head.appendChild(style);
 }
 
 
-/**
- * Main function of a tab
- */
-async function main()
+function main()
 {
 	// Skip SVG
 	if (document.documentElement.tagName === 'svg')
 		return;
 
+	// Parse the URL
 	const hostname = window.location.host.replace(/^www\./, '');
-	const hostnameParts = hostname.split('.');
+	const hostname_parts = hostname.split('.');
 
 	// Get keys for sheets
 	// ['css:*', 'css:url.org', 'css:*.org', 'css:*.url.org']
 	const keys = ['css:*', `css:${hostname}`];
-	for (let i = hostnameParts.length - 1; i >= 0; i--) {
-		const wildcardParts = ['*'];
-		for (let j = i; j < hostnameParts.length; j++)
-			wildcardParts.push(hostnameParts[j]);
-		keys.push(`css:${wildcardParts.join('.')}`);
+	for (let i = hostname_parts.length - 1; i >= 0; i--) {
+		const wildcard_parts = ['*'];
+		for (let j = i; j < hostname_parts.length; j++)
+			wildcard_parts.push(hostname_parts[j]);
+		keys.push(`css:${wildcard_parts.join('.')}`);
 	}
 
-	// Get sheets or stop
-	const sheets = await chrome.storage.sync.get(keys);
-	if (Object.keys(sheets).length == 0)
-		return;
+	// Start to get style for this URL
+	const sheets = chrome.storage.sync.get(keys);
 
-	// Append stylesheet to head
-	const style = createStyleElement();
-	document.head.appendChild(style);
-	style.innerHTML = Object.values(sheets).join('');
+	// Wait for the head - the parent of a new style element
+	if (document.head) {
+		change_style(sheets);
+	}
+	else {
+		const observer = new MutationObserver(() => {
+			change_style(sheets);
+			observer.disconnect();
+		});
+		observer.observe(document, { childList: true, subtree: true });
+	}
 }
 
 
